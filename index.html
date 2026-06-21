@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>物流網路資安與數據隱私 — 專題報告</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ─── TOKENS ─── */
+    :root {
+      --bg-base:    #0d0f0e;
+      --bg-surface: #141916;
+      --bg-card:    #1a1f1c;
+      --bg-panel:   #1f2620;
+      --border:     #2a3530;
+      --border-hi:  #3a4f45;
+
+      --mil-green:  #4a7c59;
+      --mil-green2: #5a9468;
+      --neon:       #39ff7a;
+      --neon-dim:   rgba(57,255,122,.15);
+      --neon-glow:  0 0 12px rgba(57,255,122,.45);
+
+      --amber:      #e8a240;
+      --red:        #e05252;
+      --blue:       #4aa8d8;
+
+      --text-hi:    #e8ede9;
+      --text-base:  #b4c4bb;
+      --text-muted: #6b8070;
+      --text-dim:   #3d5045;
+
+      --sidebar-w:  260px;
+      --header-h:   58px;
+      --radius:     6px;
+      --radius-lg:  10px;
+
+      --font-ui:    'Segoe UI', system-ui, sans-serif;
+      --font-mono:  'Cascadia Code', 'Consolas', monospace;
+    }
+
+    /* ─── RESET ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg-base);
+      color: var(--text-base);
+      font-family: var(--font-ui);
+      font-size: 15px;
+      line-height: 1.65;
+      min-height: 100vh;
+    }
+    a { color: var(--neon); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    img, video { max-width: 100%; border-radius: var(--radius); }
+    h1,h2,h3,h4 { color: var(--text-hi); font-weight: 600; letter-spacing: .02em; }
+
+    /* ─── CAMOUFLAGE PATTERN ─── */
+    .camo-bg {
+      background-image:
+        radial-gradient(ellipse 80px 60px at 12% 20%,  #2e4a30 0%, transparent 100%),
+        radial-gradient(ellipse 120px 80px at 35% 55%, #1e3320 0%, transparent 100%),
+        radial-gradient(ellipse 70px 90px at 60% 15%,  #3a5c3a 0%, transparent 100%),
+        radial-gradient(ellipse 100px 60px at 78% 45%, #253d25 0%, transparent 100%),
+        radial-gradient(ellipse 90px 110px at 50% 80%, #2a4228 0%, transparent 100%),
+        radial-gradient(ellipse 60px 70px at 88% 75%,  #1a2e1a 0%, transparent 100%),
+        radial-gradient(ellipse 50px 80px at 22% 85%,  #344e32 0%, transparent 100%),
+        radial-gradient(ellipse 110px 50px at 65% 68%, #1c301c 0%, transparent 100%),
+        radial-gradient(ellipse 75px 95px at 5% 55%,   #2c4830 0%, transparent 100%),
+        radial-gradient(ellipse 95px 65px at 42% 30%,  #3e5e3a 0%, transparent 100%);
+      background-color: #111a11;
+      background-size: 400px 300px;
+    }
+
+    /* ─── FIGHTER JET SVG ─── */
+    .jet-decor {
+      position: absolute;
+      right: -10px; top: 50%;
+      transform: translateY(-55%) rotate(-15deg);
+      opacity: 0.13;
+      width: 260px;
+      pointer-events: none;
+      filter: drop-shadow(0 0 18px rgba(57,255,122,.5));
+      transition: opacity .3s;
+    }
+    .hero:hover .jet-decor { opacity: 0.22; }
+
+    .jet-sm {
+      width: 22px; height: 22px;
+      opacity: 0.7;
+      filter: drop-shadow(0 0 4px rgba(57,255,122,.6));
+      flex-shrink: 0;
+    }
+
+    /* ─── SCANLINE OVERLAY ─── */
+    body::before {
+      content:'';
+      position:fixed; inset:0; pointer-events:none; z-index:9999;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,.06) 2px,
+        rgba(0,0,0,.06) 4px
+      );
+    }
+
+    /* ─── SIDEBAR ─── */
+    #sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: var(--sidebar-w);
+      height: 100vh;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      background-image:
+        radial-gradient(ellipse 120px 80px at 15% 10%,  rgba(46,74,48,.35) 0%, transparent 100%),
+        radial-gradient(ellipse 90px 110px at 75% 30%,  rgba(30,51,32,.3)  0%, transparent 100%),
+        radial-gradient(ellipse 100px 70px at 30% 60%,  rgba(42,66,40,.3)  0%, transparent 100%),
+        radial-gradient(ellipse 80px 120px at 80% 75%,  rgba(26,46,26,.35) 0%, transparent 100%),
+        radial-gradient(ellipse 110px 60px at 10% 88%,  rgba(58,92,58,.25) 0%, transparent 100%);
+      display: flex;
+      flex-direction: column;
+      z-index: 200;
+      transition: transform .3s ease;
+      overflow: hidden;
+    }
+    .sidebar-logo {
+      padding: 20px 22px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--neon-dim);
+      border: 1px solid rgba(57,255,122,.3);
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--neon);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .sidebar-logo .badge::before {
+      content:'';
+      width:6px; height:6px;
+      background: var(--neon);
+      border-radius:50%;
+      box-shadow: var(--neon-glow);
+      animation: blink 2s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .sidebar-logo h1 {
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--text-hi);
+      font-weight: 700;
+    }
+    .sidebar-logo p { font-size: 11px; color: var(--text-muted); margin-top:3px; }
+
+    .nav-section { padding: 14px 12px 6px; }
+    .nav-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--text-dim);
+      padding: 0 10px 6px;
+      font-family: var(--font-mono);
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      font-size: 13.5px;
+      color: var(--text-base);
+      border: 1px solid transparent;
+    }
+    .nav-item:hover { background: var(--bg-panel); color: var(--text-hi); }
+    .nav-item.active {
+      background: var(--neon-dim);
+      border-color: rgba(57,255,122,.25);
+      color: var(--neon);
+    }
+    .nav-item .icon { font-size: 15px; width: 20px; text-align:center; flex-shrink:0; }
+    .nav-item .num {
+      margin-left: auto;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      background: var(--bg-panel);
+      border: 1px solid var(--border-hi);
+      border-radius: 3px;
+      padding: 1px 5px;
+      color: var(--text-muted);
+    }
+    .nav-item.active .num { background: rgba(57,255,122,.2); color: var(--neon); border-color: rgba(57,255,122,.3); }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    /* ─── TOPBAR ─── */
+    #topbar {
+      position: fixed;
+      top: 0;
+      left: var(--sidebar-w);
+      right: 0;
+      height: var(--header-h);
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 28px;
+      gap: 14px;
+      z-index: 100;
+    }
+    #menu-toggle {
+      display: none;
+      background: none; border: none;
+      color: var(--text-base);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px;
+    }
+    .topbar-title {
+      font-size: 14px;
+      color: var(--text-hi);
+      font-weight: 600;
+    }
+    .topbar-crumb {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .topbar-right { margin-left: auto; display:flex; align-items:center; gap:10px; }
+    .status-pill {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-hi);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .status-pill .dot {
+      width:7px; height:7px;
+      border-radius: 50%;
+      background: var(--neon);
+      box-shadow: var(--neon-glow);
+    }
+    .class-badge {
+      background: rgba(228,82,82,.15);
+      border: 1px solid rgba(228,82,82,.3);
+      color: var(--red);
+      font-size: 10px;
+      font-family: var(--font-mono);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      border-radius: 4px;
+      padding: 3px 8px;
+    }
+
+    /* ─── MAIN ─── */
+    #main {
+      margin-left: var(--sidebar-w);
+      padding-top: var(--header-h);
+      min-height: 100vh;
+    }
+
+    /* ─── CONTENT ─── */
+    .content { padding: 36px 36px 80px; max-width: 1100px; }
+
+    /* ─── HERO ─── */
+    .hero {
+      background: linear-gradient(135deg, rgba(30,51,32,.92) 0%, rgba(13,26,14,.97) 100%);
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius-lg);
+      padding: 48px 44px;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 36px;
+    }
+    .hero::before {
+      content:'';
+      position:absolute; inset:0;
+      background-image:
+        radial-gradient(ellipse 90px 70px at 10% 20%,  rgba(46,74,48,.55) 0%, transparent 100%),
+        radial-gradient(ellipse 130px 90px at 38% 60%, rgba(30,51,32,.5)  0%, transparent 100%),
+        radial-gradient(ellipse 80px 100px at 62% 10%, rgba(58,92,58,.45)  0%, transparent 100%),
+        radial-gradient(ellipse 110px 65px at 80% 50%, rgba(37,61,37,.5)  0%, transparent 100%),
+        radial-gradient(ellipse 95px 115px at 55% 85%, rgba(42,66,40,.45) 0%, transparent 100%),
+        radial-gradient(ellipse 65px 80px at 90% 80%,  rgba(26,46,26,.5)  0%, transparent 100%);
+      background-size: 100% 100%;
+      pointer-events:none;
+      z-index:0;
+    }
+    .hero > * { position: relative; z-index: 1; }
+    .hero-tag {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--neon);
+      border: 1px solid rgba(57,255,122,.3);
+      border-radius: 3px;
+      padding: 3px 10px;
+      margin-bottom: 16px;
+    }
+    .hero h2 { font-size: 32px; line-height: 1.2; margin-bottom: 14px; }
+    .hero h2 span { color: var(--neon); }
+    .hero p { color: var(--text-base); max-width: 600px; margin-bottom: 28px; font-size: 15.5px; }
+    .hero-meta {
+      display: flex; gap: 28px; flex-wrap: wrap;
+    }
+    .hero-meta-item { display:flex; flex-direction:column; gap:3px; }
+    .hero-meta-item .label { font-size: 10px; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted); font-family:var(--font-mono); }
+    .hero-meta-item .value { font-size: 13px; color: var(--text-hi); font-weight:600; }
+
+    /* ─── SECTION ─── */
+    .section { margin-bottom: 52px; }
+    .section-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 22px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--neon);
+      background: var(--neon-dim);
+      border: 1px solid rgba(57,255,122,.25);
+      border-radius: 4px;
+      padding: 3px 8px;
+      letter-spacing: .06em;
+    }
+    .section-title { font-size: 21px; }
+    .section-sub { font-size: 13px; color: var(--text-muted); margin-left: auto; font-family: var(--font-mono); }
+
+    /* ─── KPI STRIP ─── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      transition: border-color .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card:hover { border-color: var(--border-hi); }
+    .kpi-card::after {
+      content:'';
+      position:absolute; top:0; left:0; right:0; height:2px;
+    }
+    .kpi-card.green::after  { background: linear-gradient(90deg, var(--mil-green), var(--neon)); }
+    .kpi-card.amber::after  { background: linear-gradient(90deg, #a06020, var(--amber)); }
+    .kpi-card.red::after    { background: linear-gradient(90deg, #802020, var(--red)); }
+    .kpi-card.blue::after   { background: linear-gradient(90deg, #205060, var(--blue)); }
+    .kpi-label { font-size: 11px; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted); font-family:var(--font-mono); margin-bottom:8px; }
+    .kpi-value { font-size: 30px; font-weight:700; color:var(--text-hi); line-height:1; }
+    .kpi-sub { font-size: 12px; color:var(--text-muted); margin-top:5px; }
+    .kpi-trend { font-size: 12px; margin-top:6px; }
+    .kpi-trend.up   { color: var(--red); }
+    .kpi-trend.down { color: var(--neon); }
+
+    /* ─── CARDS ─── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px 24px;
+    }
+    .card + .card { margin-top: 16px; }
+    .card-title { font-size: 14px; font-weight:600; color:var(--text-hi); margin-bottom:12px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+
+    /* ─── CHART WRAPPER ─── */
+    .chart-wrap {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px 24px;
+    }
+    .chart-wrap canvas { display:block; }
+
+    /* ─── THREAT TABLE ─── */
+    .threat-table { width:100%; border-collapse:collapse; font-size:13.5px; }
+    .threat-table th {
+      text-align:left;
+      font-size:10.5px;
+      text-transform:uppercase;
+      letter-spacing:.1em;
+      color:var(--text-muted);
+      font-family:var(--font-mono);
+      padding:10px 14px;
+      border-bottom:1px solid var(--border-hi);
+      background:var(--bg-panel);
+    }
+    .threat-table td {
+      padding:11px 14px;
+      border-bottom:1px solid var(--border);
+      color:var(--text-base);
+      vertical-align:top;
+    }
+    .threat-table tr:hover td { background:var(--bg-panel); }
+    .tag {
+      display:inline-block;
+      font-size:10px; font-family:var(--font-mono);
+      text-transform:uppercase; letter-spacing:.08em;
+      border-radius:3px; padding:2px 7px;
+    }
+    .tag.high   { background:rgba(224,82,82,.15);  color:var(--red);    border:1px solid rgba(224,82,82,.3); }
+    .tag.medium { background:rgba(232,162,64,.15); color:var(--amber);  border:1px solid rgba(232,162,64,.3); }
+    .tag.low    { background:rgba(74,168,216,.12); color:var(--blue);   border:1px solid rgba(74,168,216,.3); }
+    .tag.mil    { background:var(--neon-dim);       color:var(--neon);   border:1px solid rgba(57,255,122,.25); }
+
+    /* ─── TIMELINE ─── */
+    .timeline { list-style:none; padding:0; }
+    .timeline li {
+      position:relative;
+      padding:0 0 22px 28px;
+    }
+    .timeline li::before {
+      content:'';
+      position:absolute; left:0; top:6px;
+      width:10px; height:10px;
+      border-radius:50%;
+      background:var(--mil-green);
+      border:2px solid var(--neon);
+      box-shadow: var(--neon-glow);
+    }
+    .timeline li::after {
+      content:'';
+      position:absolute; left:4px; top:18px;
+      width:2px; bottom:0;
+      background:var(--border-hi);
+    }
+    .timeline li:last-child::after { display:none; }
+    .timeline li:last-child { padding-bottom:0; }
+    .tl-year { font-family:var(--font-mono); font-size:11px; color:var(--neon); margin-bottom:3px; }
+    .tl-title { font-size:14px; font-weight:600; color:var(--text-hi); margin-bottom:4px; }
+    .tl-desc { font-size:13px; color:var(--text-base); }
+
+    /* ─── ARCH DIAGRAM ─── */
+    .arch-layer {
+      display:flex; gap:10px;
+      margin-bottom:10px;
+      align-items:stretch;
+    }
+    .arch-label {
+      width:110px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:flex-end;
+      font-size:11px; font-family:var(--font-mono);
+      text-transform:uppercase; letter-spacing:.08em;
+      color:var(--text-muted);
+      padding-right:12px;
+    }
+    .arch-boxes { display:flex; gap:8px; flex-wrap:wrap; }
+    .arch-box {
+      background:var(--bg-panel);
+      border:1px solid var(--border-hi);
+      border-radius:var(--radius);
+      padding:9px 14px;
+      font-size:12.5px; color:var(--text-hi);
+      text-align:center; white-space:nowrap;
+    }
+    .arch-box.hi { border-color:rgba(57,255,122,.4); color:var(--neon); background:var(--neon-dim); }
+    .arch-connector {
+      width:110px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:flex-end;
+      padding-right:12px;
+    }
+    .arch-line { width:2px; height:20px; background:var(--border-hi); margin: 0 auto 0 auto; }
+    .arch-arrow { text-align:center; font-size:12px; color:var(--text-dim); margin-right:0; }
+
+    /* ─── LAW CARDS ─── */
+    .law-card {
+      background:var(--bg-card);
+      border:1px solid var(--border);
+      border-left:3px solid var(--mil-green);
+      border-radius:var(--radius-lg);
+      padding:18px 20px;
+      margin-bottom:14px;
+    }
+    .law-card h4 { color:var(--text-hi); margin-bottom:6px; font-size:14.5px; }
+    .law-card .meta { display:flex; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+    .law-card p { font-size:13.5px; color:var(--text-base); }
+
+    /* ─── CASE STUDY ─── */
+    .case-card {
+      background:var(--bg-card);
+      border:1px solid var(--border);
+      border-radius:var(--radius-lg);
+      overflow:hidden;
+      margin-bottom:20px;
+    }
+    .case-head {
+      background:var(--bg-panel);
+      border-bottom:1px solid var(--border);
+      padding:16px 22px;
+      display:flex; align-items:center; gap:14px;
+    }
+    .case-num {
+      font-family:var(--font-mono); font-size:11px;
+      background:var(--neon-dim); color:var(--neon);
+      border:1px solid rgba(57,255,122,.25);
+      border-radius:4px; padding:2px 8px;
+    }
+    .case-title { font-size:15px; font-weight:600; color:var(--text-hi); }
+    .case-body { padding:20px 22px; }
+    .case-body p { font-size:13.5px; color:var(--text-base); margin-bottom:10px; }
+    .impact-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    .impact-chip {
+      background:var(--bg-panel); border:1px solid var(--border-hi);
+      border-radius:4px; padding:5px 12px;
+      font-size:12px; color:var(--text-base);
+    }
+    .impact-chip strong { color:var(--text-hi); }
+
+    /* ─── RECOMMENDATION ─── */
+    .rec-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap:16px; }
+    .rec-card {
+      background:var(--bg-card);
+      border:1px solid var(--border);
+      border-radius:var(--radius-lg);
+      padding:20px 22px;
+    }
+    .rec-icon { font-size:24px; margin-bottom:10px; }
+    .rec-card h4 { font-size:14px; color:var(--text-hi); margin-bottom:8px; }
+    .rec-card p { font-size:13px; color:var(--text-base); }
+    .rec-card ul { margin:8px 0 0 0; padding-left:16px; font-size:13px; color:var(--text-base); }
+    .rec-card ul li { margin-bottom:4px; }
+
+    /* ─── VIDEO SECTION ─── */
+    .video-wrap {
+      background:var(--bg-card);
+      border:1px solid var(--border);
+      border-radius:var(--radius-lg);
+      overflow:hidden;
+      margin-bottom:20px;
+    }
+    .video-head {
+      background:var(--bg-panel);
+      border-bottom:1px solid var(--border);
+      padding:12px 20px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .video-head h4 { font-size:13.5px; color:var(--text-hi); }
+    .video-container {
+      position:relative; padding-top:56.25%; /* 16:9 */
+      background:#000;
+    }
+    .video-container iframe,
+    .video-container video {
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      border:0; border-radius:0;
+    }
+    .video-placeholder {
+      position:absolute; inset:0;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      background:linear-gradient(135deg,#0d1a10 0%,#0a0f0c 100%);
+      color:var(--text-muted);
+      gap:12px;
+    }
+    .video-placeholder .play-btn {
+      width:64px; height:64px;
+      border-radius:50%;
+      background:var(--neon-dim);
+      border:2px solid rgba(57,255,122,.4);
+      display:flex; align-items:center; justify-content:center;
+      font-size:24px; cursor:pointer;
+      transition: box-shadow .2s, border-color .2s;
+    }
+    .video-placeholder .play-btn:hover {
+      box-shadow: var(--neon-glow);
+      border-color: rgba(57,255,122,.8);
+    }
+    .video-placeholder p { font-size:12px; font-family:var(--font-mono); color:var(--text-dim); }
+
+    /* ─── PROGRESS BAR ─── */
+    .prog-list { display:flex; flex-direction:column; gap:14px; }
+    .prog-item label {
+      display:flex; justify-content:space-between;
+      font-size:13px; color:var(--text-base); margin-bottom:6px;
+    }
+    .prog-item label span { color:var(--text-hi); font-weight:600; }
+    .prog-track {
+      height:6px; background:var(--bg-panel);
+      border-radius:4px; overflow:hidden;
+    }
+    .prog-fill {
+      height:100%; border-radius:4px;
+      background:linear-gradient(90deg, var(--mil-green), var(--neon));
+      position:relative;
+    }
+    .prog-fill::after {
+      content:'';
+      position:absolute; right:0; top:-3px;
+      width:12px; height:12px;
+      border-radius:50%;
+      background:var(--neon);
+      box-shadow:var(--neon-glow);
+    }
+
+    /* ─── SCROLLBAR ─── */
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background:var(--border-hi); border-radius:4px; }
+    ::-webkit-scrollbar-thumb:hover { background:var(--mil-green); }
+
+    /* ─── MOBILE ─── */
+    #sidebar-overlay {
+      display:none;
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.6);
+      z-index:190;
+    }
+    @media(max-width:900px) {
+      #sidebar { transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); }
+      #sidebar-overlay.show { display:block; }
+      #topbar { left:0; }
+      #main  { margin-left:0; }
+      #menu-toggle { display:block; }
+      .grid-2 { grid-template-columns:1fr; }
+      .grid-3 { grid-template-columns:1fr; }
+      .content { padding:20px 16px 60px; }
+      .hero { padding:28px 20px; }
+      .hero h2 { font-size:24px; }
+      .arch-label { width:70px; font-size:9px; }
+    }
+
+    /* ─── HIDDEN SECTIONS ─── */
+    .page-section { display:none; }
+    .page-section.active { display:block; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR OVERLAY -->
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="badge">CLASSIFIED</div>
+    <h1>物流網路資安<br>與數據隱私</h1>
+    <p>專題研究報告 · 2025</p>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">主要章節</div>
+    <div class="nav-item active" onclick="showSection('s0',this)">
+      <span class="icon">◈</span> 執行摘要
+      <span class="num">01</span>
+    </div>
+    <div class="nav-item" onclick="showSection('s1',this)">
+      <span class="icon">⚠</span> 威脅分析
+      <span class="num">02</span>
+    </div>
+    <div class="nav-item" onclick="showSection('s2',this)">
+      <span class="icon">⚖</span> 數據隱私法規
+      <span class="num">03</span>
+    </div>
+    <div class="nav-item" onclick="showSection('s3',this)">
+      <span class="icon">🛡</span> 資安架構
+      <span class="num">04</span>
+    </div>
+    <div class="nav-item" onclick="showSection('s4',this)">
+      <span class="icon">📋</span> 案例研究
+      <span class="num">05</span>
+    </div>
+    <div class="nav-item" onclick="showSection('s5',this)">
+      <span class="icon">✦</span> 建議對策
+      <span class="num">06</span>
+    </div>
+    <div class="nav-item" onclick="showSection('s6',this)">
+      <span class="icon">▶</span> 影片資源
+      <span class="num">07</span>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    REPORT · REV 3.1<br>
+    LAST UPDATE · 2025-06-21
+  </div>
+</nav>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
+  <span class="topbar-title">物流網路資安與數據隱私</span>
+  <span class="topbar-crumb" id="topbar-crumb">/ 執行摘要</span>
+  <div class="topbar-right">
+    <div class="status-pill"><div class="dot"></div>系統監控中</div>
+    <div class="class-badge">機密報告</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<main id="main">
+<div class="content">
+
+<!-- ════════ S0 執行摘要 ════════ -->
+<div class="page-section active" id="s0">
+  <div class="hero">
+    <!-- Fighter Jet Decoration -->
+    <svg class="jet-decor" viewBox="0 0 200 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- fuselage -->
+      <ellipse cx="100" cy="170" rx="10" ry="110" fill="#39ff7a"/>
+      <!-- nose cone -->
+      <polygon points="100,20 90,80 110,80" fill="#39ff7a"/>
+      <!-- main wings -->
+      <polygon points="100,130 20,230 40,240 100,160 160,240 180,230" fill="#39ff7a"/>
+      <!-- rear delta fins -->
+      <polygon points="100,240 50,310 70,315 100,260 130,315 150,310" fill="#39ff7a"/>
+      <!-- canards -->
+      <polygon points="100,100 65,140 75,145 100,115 125,145 135,140" fill="#39ff7a"/>
+      <!-- cockpit -->
+      <ellipse cx="100" cy="95" rx="7" ry="16" fill="#0d2010" stroke="#39ff7a" stroke-width="1.5"/>
+      <!-- engine exhausts -->
+      <ellipse cx="88"  cy="282" rx="5" ry="8" fill="#1a3020"/>
+      <ellipse cx="112" cy="282" rx="5" ry="8" fill="#1a3020"/>
+      <!-- engine glow -->
+      <ellipse cx="88"  cy="290" rx="4" ry="5" fill="#39ff7a" opacity=".6"/>
+      <ellipse cx="112" cy="290" rx="4" ry="5" fill="#39ff7a" opacity=".6"/>
+      <!-- centerline detail -->
+      <line x1="100" y1="60" x2="100" y2="270" stroke="#0d2010" stroke-width="1.5" stroke-dasharray="6 4"/>
+    </svg>
+
+    <div class="hero-tag">▸ 執行摘要 · EXECUTIVE SUMMARY</div>
+    <h2>物流供應鏈的<span>資安危機</span>已全面升溫</h2>
+    <p>全球物流產業每日傳輸數以億計的貨物追蹤、客戶個資與金流資訊，成為網路攻擊者的高價值目標。本報告系統性梳理威脅態勢、法規遵循要求與縱深防禦架構，提供具體可行的對策路線圖。</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span class="label">報告年份</span>
+        <span class="value">2025 Q2</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="label">研究範疇</span>
+        <span class="value">全球物流產業</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="label">風險等級</span>
+        <span class="value" style="color:var(--red)">極高 ▲</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="label">章節數</span>
+        <span class="value">6 + 附件</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi-card red">
+      <div class="kpi-label">2024 物流業資安事件</div>
+      <div class="kpi-value">2,847</div>
+      <div class="kpi-sub">已通報事件件數</div>
+      <div class="kpi-trend up">↑ 38% YoY</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-label">平均損失金額</div>
+      <div class="kpi-value">$4.9M</div>
+      <div class="kpi-sub">每次資料外洩（USD）</div>
+      <div class="kpi-trend up">↑ 12% vs 2023</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">受影響企業比例</div>
+      <div class="kpi-value">67%</div>
+      <div class="kpi-sub">全球物流企業曾遭攻擊</div>
+      <div class="kpi-trend up">↑ 9%</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">平均偵測時間 (MTTD)</div>
+      <div class="kpi-value">194天</div>
+      <div class="kpi-sub">供應鏈攻擊潛伏週期</div>
+      <div class="kpi-trend down">↓ 改善中</div>
+    </div>
+  </div>
+
+  <!-- 摘要說明 -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">報告範疇與方法</div>
+      <p style="font-size:13.5px;color:var(--text-base)">本報告採用 NIST CSF 2.0 框架，結合 MITRE ATT&CK for ICS 矩陣，針對第三方物流（3PL）、電商倉儲、跨境清關等場景進行系統性威脅建模與風險評估。數據來源涵蓋 Verizon DBIR、IBM X-Force、CrowdStrike 全球威脅報告及台灣 TWCERT/CC 公告。</p>
+    </div>
+    <div class="card">
+      <div class="card-title">三大核心發現</div>
+      <ul style="font-size:13.5px;color:var(--text-base);padding-left:18px;line-height:2">
+        <li>勒索軟體針對物流控制系統攻擊量 <strong style="color:var(--red)">年增 84%</strong></li>
+        <li>供應商 API 整合是最主要入侵向量（佔 41%）</li>
+        <li>GDPR、個資法的不合規罰款在台灣及歐盟均創新高</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 趨勢折線圖 -->
+  <div class="section-header" style="margin-top:32px">
+    <span class="section-num">TREND</span>
+    <h3 class="section-title">物流業資安事件趨勢（2020–2025）</h3>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chartTrend" height="90"></canvas>
+  </div>
+</div>
+
+<!-- ════════ S1 威脅分析 ════════ -->
+<div class="page-section" id="s1">
+  <div class="section-header">
+    <span class="section-num">02</span>
+    <svg class="jet-sm" viewBox="0 0 200 340" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="100" cy="170" rx="10" ry="110" fill="#39ff7a"/><polygon points="100,20 90,80 110,80" fill="#39ff7a"/><polygon points="100,130 20,230 40,240 100,160 160,240 180,230" fill="#39ff7a"/><polygon points="100,240 50,310 70,315 100,260 130,315 150,310" fill="#39ff7a"/><polygon points="100,100 65,140 75,145 100,115 125,145 135,140" fill="#39ff7a"/></svg>
+    <h2 class="section-title">威脅分析</h2>
+    <span class="section-sub">THREAT ANALYSIS</span>
+  </div>
+
+  <!-- 威脅類型橫條圖 -->
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="chart-wrap">
+      <div class="card-title" style="margin-bottom:14px">攻擊向量分佈</div>
+      <div style="position:relative;height:280px">
+        <canvas id="chartVector"></canvas>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <div class="card-title" style="margin-bottom:14px">威脅嚴重度分層</div>
+      <div style="position:relative;height:280px">
+        <canvas id="chartSeverity"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- 威脅清單 -->
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="threat-table">
+      <thead>
+        <tr>
+          <th>威脅類型</th>
+          <th>攻擊向量</th>
+          <th>目標資產</th>
+          <th>嚴重度</th>
+          <th>發生頻率</th>
+          <th>MITRE ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:var(--text-hi)">勒索軟體</strong><br><small>Ransomware-as-a-Service</small></td>
+          <td>釣魚郵件、RDP 暴力破解</td>
+          <td>WMS、ERP、OT 系統</td>
+          <td><span class="tag high">CRITICAL</span></td>
+          <td>極高</td>
+          <td><span class="tag mil">T1486</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--text-hi)">供應鏈攻擊</strong><br><small>Third-party Compromise</small></td>
+          <td>惡意軟體更新、API 後門</td>
+          <td>SaaS 平台、EDI 接口</td>
+          <td><span class="tag high">HIGH</span></td>
+          <td>高</td>
+          <td><span class="tag mil">T1195</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--text-hi)">資料外洩</strong><br><small>Data Exfiltration</small></td>
+          <td>內部威脅、SQL 注入</td>
+          <td>客戶個資、貨運清單</td>
+          <td><span class="tag high">HIGH</span></td>
+          <td>高</td>
+          <td><span class="tag mil">T1048</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--text-hi)">DDoS 攻擊</strong><br><small>Distributed Denial of Service</small></td>
+          <td>殭屍網路、IoT 設備</td>
+          <td>電商平台、追蹤系統</td>
+          <td><span class="tag medium">MEDIUM</span></td>
+          <td>中</td>
+          <td><span class="tag mil">T1498</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--text-hi)">GPS 欺騙</strong><br><small>GPS Spoofing</small></td>
+          <td>無線干擾、假信號注入</td>
+          <td>車輛追蹤、無人機</td>
+          <td><span class="tag medium">MEDIUM</span></td>
+          <td>低</td>
+          <td><span class="tag mil">T0860</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--text-hi)">中間人攻擊</strong><br><small>Man-in-the-Middle</small></td>
+          <td>未加密 Wi-Fi、ARP 毒化</td>
+          <td>倉儲 RF 掃描、IoT</td>
+          <td><span class="tag medium">MEDIUM</span></td>
+          <td>中</td>
+          <td><span class="tag mil">T1557</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--text-hi)">內部威脅</strong><br><small>Insider Threat</small></td>
+          <td>特權濫用、社交工程</td>
+          <td>系統日誌、貨運路線</td>
+          <td><span class="tag low">LOW-MED</span></td>
+          <td>低</td>
+          <td><span class="tag mil">T1078</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 攻擊鏈說明 -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">典型供應鏈攻擊鏈（Kill Chain）</div>
+    <div style="display:flex;gap:0;align-items:center;flex-wrap:wrap;margin-top:10px">
+      <div style="text-align:center;padding:0 6px">
+        <div style="background:var(--bg-panel);border:1px solid var(--border-hi);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--text-hi)">偵察<br><small style="color:var(--text-muted)">Recon</small></div>
+      </div>
+      <div style="color:var(--mil-green);font-size:18px;padding:0 4px">→</div>
+      <div style="text-align:center;padding:0 6px">
+        <div style="background:var(--bg-panel);border:1px solid var(--border-hi);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--text-hi)">武裝化<br><small style="color:var(--text-muted)">Weaponize</small></div>
+      </div>
+      <div style="color:var(--mil-green);font-size:18px;padding:0 4px">→</div>
+      <div style="text-align:center;padding:0 6px">
+        <div style="background:var(--bg-panel);border:1px solid var(--border-hi);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--text-hi)">投遞<br><small style="color:var(--text-muted)">Delivery</small></div>
+      </div>
+      <div style="color:var(--mil-green);font-size:18px;padding:0 4px">→</div>
+      <div style="text-align:center;padding:0 6px">
+        <div style="background:var(--bg-panel);border:1px solid var(--border-hi);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--text-hi)">漏洞利用<br><small style="color:var(--text-muted)">Exploit</small></div>
+      </div>
+      <div style="color:var(--mil-green);font-size:18px;padding:0 4px">→</div>
+      <div style="text-align:center;padding:0 6px">
+        <div style="background:rgba(224,82,82,.12);border:1px solid rgba(224,82,82,.3);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--red)">橫向移動<br><small>Lateral Move</small></div>
+      </div>
+      <div style="color:var(--red);font-size:18px;padding:0 4px">→</div>
+      <div style="text-align:center;padding:0 6px">
+        <div style="background:rgba(224,82,82,.12);border:1px solid rgba(224,82,82,.3);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--red)">資料竊取<br><small>Exfiltration</small></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ S2 法規 ════════ -->
+<div class="page-section" id="s2">
+  <div class="section-header">
+    <span class="section-num">03</span>
+    <svg class="jet-sm" viewBox="0 0 200 340" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="100" cy="170" rx="10" ry="110" fill="#39ff7a"/><polygon points="100,20 90,80 110,80" fill="#39ff7a"/><polygon points="100,130 20,230 40,240 100,160 160,240 180,230" fill="#39ff7a"/><polygon points="100,240 50,310 70,315 100,260 130,315 150,310" fill="#39ff7a"/><polygon points="100,100 65,140 75,145 100,115 125,145 135,140" fill="#39ff7a"/></svg>
+    <h2 class="section-title">數據隱私法規</h2>
+    <span class="section-sub">COMPLIANCE & REGULATIONS</span>
+  </div>
+
+  <div class="law-card">
+    <h4>🇪🇺 GDPR — 歐盟一般資料保護規則</h4>
+    <div class="meta">
+      <span class="tag mil">生效：2018</span>
+      <span class="tag medium">最高罰款：€2000萬 或 全球營收 4%</span>
+      <span class="tag low">適用：處理歐盟公民資料的物流企業</span>
+    </div>
+    <p>跨境物流企業在處理歐盟客戶訂單時，必須遵守資料最小化原則、明確的同意機制，及 72 小時資料外洩通報義務。DHL、FedEx 等跨國物流商已投入超過 1 億歐元進行 GDPR 合規改造。</p>
+  </div>
+
+  <div class="law-card" style="border-left-color:var(--amber)">
+    <h4>🇺🇸 CCPA / CPRA — 加州消費者隱私法</h4>
+    <div class="meta">
+      <span class="tag mil">生效：2020 / 2023</span>
+      <span class="tag medium">罰款：$2,500–$7,500 / 件</span>
+      <span class="tag low">適用：在加州營運的物流平台</span>
+    </div>
+    <p>賦予消費者刪除個資、拒絕販售個資的權利。美國物流平台須在隱私政策中揭露資料共享第三方清單，並提供「不販售我的個人資訊」選項。</p>
+  </div>
+
+  <div class="law-card" style="border-left-color:var(--blue)">
+    <h4>🇹🇼 個人資料保護法 — 台灣個資法</h4>
+    <div class="meta">
+      <span class="tag mil">修正：2023</span>
+      <span class="tag medium">罰款：最高 NT$1500萬</span>
+      <span class="tag low">適用：在台灣蒐集、處理或利用個資</span>
+    </div>
+    <p>台灣物流業蒐集姓名、電話、地址等個資時需取得書面或電子同意，並於隱私聲明中揭露利用目的。跨境傳輸個資至未達同等保護水準之國家須申請審核。</p>
+  </div>
+
+  <div class="law-card" style="border-left-color:var(--red)">
+    <h4>🇨🇳 PIPL — 中國個人信息保護法</h4>
+    <div class="meta">
+      <span class="tag mil">生效：2021</span>
+      <span class="tag high">罰款：最高 5000萬人民幣 或 年營收 5%</span>
+      <span class="tag low">適用：處理中國境內用戶數據</span>
+    </div>
+    <p>嚴格的數據本地化要求，物流企業在中國境內產生的重要數據須儲存於中國境內伺服器。跨境傳輸需通過安全評估或簽署標準合同條款（SCCs）。</p>
+  </div>
+
+  <!-- 合規雷達圖 -->
+  <div class="chart-wrap" style="margin-top:20px">
+    <div class="card-title" style="margin-bottom:14px">各法規合規要求強度比較</div>
+    <canvas id="chartRadar" height="100"></canvas>
+  </div>
+</div>
+
+<!-- ════════ S3 架構 ════════ -->
+<div class="page-section" id="s3">
+  <div class="section-header">
+    <span class="section-num">04</span>
+    <svg class="jet-sm" viewBox="0 0 200 340" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="100" cy="170" rx="10" ry="110" fill="#39ff7a"/><polygon points="100,20 90,80 110,80" fill="#39ff7a"/><polygon points="100,130 20,230 40,240 100,160 160,240 180,230" fill="#39ff7a"/><polygon points="100,240 50,310 70,315 100,260 130,315 150,310" fill="#39ff7a"/><polygon points="100,100 65,140 75,145 100,115 125,145 135,140" fill="#39ff7a"/></svg>
+    <h2 class="section-title">資安架構</h2>
+    <span class="section-sub">SECURITY ARCHITECTURE</span>
+  </div>
+
+  <!-- 縱深防禦架構 -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">縱深防禦架構（Defense-in-Depth）</div>
+    <div style="margin-top:16px">
+      <div class="arch-layer">
+        <div class="arch-label">外網層</div>
+        <div class="arch-boxes">
+          <div class="arch-box">WAF</div>
+          <div class="arch-box">DDoS 防護</div>
+          <div class="arch-box">CDN / 過濾</div>
+          <div class="arch-box">DNS 安全</div>
+        </div>
+      </div>
+      <div style="padding-left:130px"><div class="arch-line"></div><div class="arch-arrow">↓ 過濾後流量</div><div class="arch-line"></div></div>
+      <div class="arch-layer">
+        <div class="arch-label">邊界層</div>
+        <div class="arch-boxes">
+          <div class="arch-box hi">NGFW</div>
+          <div class="arch-box">IDS / IPS</div>
+          <div class="arch-box">VPN / Zero Trust</div>
+          <div class="arch-box">SSL Inspection</div>
+        </div>
+      </div>
+      <div style="padding-left:130px"><div class="arch-line"></div><div class="arch-arrow">↓ 身份驗證</div><div class="arch-line"></div></div>
+      <div class="arch-layer">
+        <div class="arch-label">應用層</div>
+        <div class="arch-boxes">
+          <div class="arch-box">API Gateway</div>
+          <div class="arch-box hi">MFA / IAM</div>
+          <div class="arch-box">SAST / DAST</div>
+          <div class="arch-box">Secrets Mgmt</div>
+        </div>
+      </div>
+      <div style="padding-left:130px"><div class="arch-line"></div><div class="arch-arrow">↓ 加密傳輸</div><div class="arch-line"></div></div>
+      <div class="arch-layer">
+        <div class="arch-label">數據層</div>
+        <div class="arch-boxes">
+          <div class="arch-box">AES-256 加密</div>
+          <div class="arch-box">DLP 方案</div>
+          <div class="arch-box">DB 活動監控</div>
+          <div class="arch-box hi">備份 / 複製</div>
+        </div>
+      </div>
+      <div style="padding-left:130px"><div class="arch-line"></div><div class="arch-arrow">↓ 持續監控</div><div class="arch-line"></div></div>
+      <div class="arch-layer">
+        <div class="arch-label">監控層</div>
+        <div class="arch-boxes">
+          <div class="arch-box hi">SIEM</div>
+          <div class="arch-box">EDR / XDR</div>
+          <div class="arch-box">SOC 24/7</div>
+          <div class="arch-box">Threat Intel</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 成熟度評估 -->
+  <div class="card">
+    <div class="card-title">物流業資安成熟度現況（CMMC 評分）</div>
+    <div class="prog-list" style="margin-top:14px">
+      <div class="prog-item">
+        <label>身份與存取管理 (IAM) <span>72%</span></label>
+        <div class="prog-track"><div class="prog-fill" style="width:72%"></div></div>
+      </div>
+      <div class="prog-item">
+        <label>網路分段與隔離 <span>58%</span></label>
+        <div class="prog-track"><div class="prog-fill" style="width:58%"></div></div>
+      </div>
+      <div class="prog-item">
+        <label>資料加密與保護 <span>65%</span></label>
+        <div class="prog-track"><div class="prog-fill" style="width:65%"></div></div>
+      </div>
+      <div class="prog-item">
+        <label>端點防護 (EDR) <span>81%</span></label>
+        <div class="prog-track"><div class="prog-fill" style="width:81%"></div></div>
+      </div>
+      <div class="prog-item">
+        <label>OT / IoT 設備安全 <span>34%</span></label>
+        <div class="prog-track"><div class="prog-fill" style="width:34%;background:linear-gradient(90deg,#7a3030,var(--red))"></div></div>
+      </div>
+      <div class="prog-item">
+        <label>供應商風險管理 <span>41%</span></label>
+        <div class="prog-track"><div class="prog-fill" style="width:41%;background:linear-gradient(90deg,#7a5020,var(--amber))"></div></div>
+      </div>
+      <div class="prog-item">
+        <label>事件回應 (IR) 計畫 <span>55%</span></label>
+        <div class="prog-track"><div class="prog-fill" style="width:55%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NIST CSF -->
+  <div class="grid-3" style="margin-top:16px">
+    <div class="card">
+      <div class="card-title" style="color:var(--neon)">識別 (Identify)</div>
+      <ul style="font-size:13px;color:var(--text-base);padding-left:16px;line-height:1.9">
+        <li>資產盤點與分類</li>
+        <li>供應商風險評級</li>
+        <li>業務影響分析 BIA</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--blue)">保護 (Protect)</div>
+      <ul style="font-size:13px;color:var(--text-base);padding-left:16px;line-height:1.9">
+        <li>Zero Trust 架構</li>
+        <li>MFA 強制啟用</li>
+        <li>資安意識訓練</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--amber)">偵測 (Detect)</div>
+      <ul style="font-size:13px;color:var(--text-base);padding-left:16px;line-height:1.9">
+        <li>SIEM 集中日誌</li>
+        <li>使用者行為分析 UEBA</li>
+        <li>IoT 異常偵測</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--red)">回應 (Respond)</div>
+      <ul style="font-size:13px;color:var(--text-base);padding-left:16px;line-height:1.9">
+        <li>IR Playbook 制定</li>
+        <li>SOAR 自動化回應</li>
+        <li>72hr 外洩通報</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--mil-green2)">復原 (Recover)</div>
+      <ul style="font-size:13px;color:var(--text-base);padding-left:16px;line-height:1.9">
+        <li>RTO / RPO 目標設定</li>
+        <li>異地備份驗證</li>
+        <li>演練與改善</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--text-muted)">治理 (Govern) ★NEW</div>
+      <ul style="font-size:13px;color:var(--text-base);padding-left:16px;line-height:1.9">
+        <li>CISO 職位設立</li>
+        <li>資安政策委員會</li>
+        <li>KPI 定期審查</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ S4 案例研究 ════════ -->
+<div class="page-section" id="s4">
+  <div class="section-header">
+    <span class="section-num">05</span>
+    <svg class="jet-sm" viewBox="0 0 200 340" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="100" cy="170" rx="10" ry="110" fill="#39ff7a"/><polygon points="100,20 90,80 110,80" fill="#39ff7a"/><polygon points="100,130 20,230 40,240 100,160 160,240 180,230" fill="#39ff7a"/><polygon points="100,240 50,310 70,315 100,260 130,315 150,310" fill="#39ff7a"/><polygon points="100,100 65,140 75,145 100,115 125,145 135,140" fill="#39ff7a"/></svg>
+    <h2 class="section-title">案例研究</h2>
+    <span class="section-sub">CASE STUDIES</span>
+  </div>
+
+  <div class="case-card">
+    <div class="case-head">
+      <span class="case-num">CASE 01</span>
+      <span class="case-title">NotPetya 攻擊馬士基（2017）</span>
+      <span class="tag high" style="margin-left:auto">CRITICAL</span>
+    </div>
+    <div class="case-body">
+      <p>全球最大航運公司馬士基（Maersk）遭受 NotPetya 勒索軟體攻擊，導致全球 76 個港口、45,000 台電腦、4,000 台伺服器在數小時內癱瘓。</p>
+      <p><strong style="color:var(--text-hi)">攻擊手法：</strong>透過烏克蘭稅務軟體 M.E.Doc 的更新機制植入惡意代碼，利用 EternalBlue 漏洞橫向擴散，目的是破壞而非勒贖。</p>
+      <p><strong style="color:var(--text-hi)">關鍵教訓：</strong>供應鏈軟體更新驗證機制的重要性；網路微分段可大幅限制橫向移動範圍。</p>
+      <div class="impact-row">
+        <div class="impact-chip"><strong>損失</strong> $3 億美元</div>
+        <div class="impact-chip"><strong>停擺</strong> 10 天</div>
+        <div class="impact-chip"><strong>重建</strong> 45,000 台電腦</div>
+        <div class="impact-chip"><strong>處理量</strong> 下降 20%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="case-card">
+    <div class="case-head">
+      <span class="case-num">CASE 02</span>
+      <span class="case-title">FedEx TNT 勒索攻擊（2017）</span>
+      <span class="tag high" style="margin-left:auto">HIGH</span>
+    </div>
+    <div class="case-body">
+      <p>FedEx 旗下 TNT Express 在 NotPetya 攻擊中損失慘重，歐洲配送網路嚴重中斷，部分系統需數月才能完全恢復。</p>
+      <p><strong style="color:var(--text-hi)">攻擊手法：</strong>相同的 NotPetya 惡意軟體，但 TNT 因缺乏有效的備份恢復計畫，復原時間遠比馬士基更長。</p>
+      <p><strong style="color:var(--text-hi)">關鍵教訓：</strong>備份不等於可用的恢復能力；需定期演練完整 DR 流程並驗證 RTO/RPO。</p>
+      <div class="impact-row">
+        <div class="impact-chip"><strong>損失</strong> $4 億美元</div>
+        <div class="impact-chip"><strong>客戶流失</strong> 永久部分</div>
+        <div class="impact-chip"><strong>股價</strong> 下跌 8%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="case-card">
+    <div class="case-head">
+      <span class="case-num">CASE 03</span>
+      <span class="case-title">Log4Shell 衝擊全球物流 API（2021）</span>
+      <span class="tag medium" style="margin-left:auto">HIGH</span>
+    </div>
+    <div class="case-body">
+      <p>Log4j 零日漏洞（CVE-2021-44228）曝光後，全球數千家物流公司使用的 WMS、TMS 等 Java 應用受影響，攻擊者在 48 小時內即開始大規模掃描。</p>
+      <p><strong style="color:var(--text-hi)">攻擊手法：</strong>透過貨運追蹤號碼欄位注入 JNDI 指令，遠端執行程式碼，進而建立後門。</p>
+      <p><strong style="color:var(--text-hi)">關鍵教訓：</strong>SBOM（軟體物料清單）的重要性；第三方函式庫的即時漏洞管理機制。</p>
+      <div class="impact-row">
+        <div class="impact-chip"><strong>影響範圍</strong> 全球 40%+ Java 應用</div>
+        <div class="impact-chip"><strong>修補時間</strong> 平均 72 小時</div>
+        <div class="impact-chip"><strong>受影響廠商</strong> 數千家</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 時間軸 -->
+  <div class="card" style="margin-top:10px">
+    <div class="card-title">重大物流資安事件時間軸</div>
+    <ul class="timeline" style="margin-top:16px">
+      <li>
+        <div class="tl-year">2017</div>
+        <div class="tl-title">NotPetya 摧毀馬士基全球系統</div>
+        <div class="tl-desc">史上損失最慘重的網路攻擊之一，重新定義供應鏈攻擊威脅模型。</div>
+      </li>
+      <li>
+        <div class="tl-year">2020</div>
+        <div class="tl-title">SolarWinds 攻擊滲透物流軟體供應商</div>
+        <div class="tl-desc">多家企業資源規劃（ERP）廠商受波及，強化 SBOM 管理意識。</div>
+      </li>
+      <li>
+        <div class="tl-year">2021</div>
+        <div class="tl-title">Log4Shell 零日漏洞爆發</div>
+        <div class="tl-desc">全球物流 Java 應用大規模受影響，加速企業採用 SBOM 與漏洞情資訂閱。</div>
+      </li>
+      <li>
+        <div class="tl-year">2022</div>
+        <div class="tl-title">科技業制裁俄羅斯引發供應鏈資安重組</div>
+        <div class="tl-desc">地緣政治風險成為供應鏈資安新變數，企業開始「去風險化」策略。</div>
+      </li>
+      <li>
+        <div class="tl-year">2023</div>
+        <div class="tl-title">MOVEit 零日影響全球物流檔案傳輸</div>
+        <div class="tl-desc">Cl0p 勒索組織利用 MOVEit 傳輸工具漏洞，竊取多家物流公司文件。</div>
+      </li>
+      <li>
+        <div class="tl-year">2024–25</div>
+        <div class="tl-title">AI 驅動的自動化攻擊興起</div>
+        <div class="tl-desc">攻擊者運用 LLM 生成高度客製化釣魚攻擊，針對物流客服人員。</div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- ════════ S5 建議對策 ════════ -->
+<div class="page-section" id="s5">
+  <div class="section-header">
+    <span class="section-num">06</span>
+    <svg class="jet-sm" viewBox="0 0 200 340" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="100" cy="170" rx="10" ry="110" fill="#39ff7a"/><polygon points="100,20 90,80 110,80" fill="#39ff7a"/><polygon points="100,130 20,230 40,240 100,160 160,240 180,230" fill="#39ff7a"/><polygon points="100,240 50,310 70,315 100,260 130,315 150,310" fill="#39ff7a"/><polygon points="100,100 65,140 75,145 100,115 125,145 135,140" fill="#39ff7a"/></svg>
+    <h2 class="section-title">建議對策</h2>
+    <span class="section-sub">RECOMMENDATIONS</span>
+  </div>
+
+  <div class="rec-grid">
+    <div class="rec-card" style="border-top:2px solid var(--neon)">
+      <div class="rec-icon">🔐</div>
+      <h4>Zero Trust 架構導入</h4>
+      <p>移除隱性信任假設，所有存取請求須持續驗證身份、裝置健康狀態與權限範圍。</p>
+      <ul>
+        <li>強制 MFA + 條件存取政策</li>
+        <li>微分段限制橫向移動</li>
+        <li>特權帳號即時存取 (JIT)</li>
+      </ul>
+    </div>
+    <div class="rec-card" style="border-top:2px solid var(--amber)">
+      <div class="rec-icon">🏭</div>
+      <h4>OT/IoT 安全強化</h4>
+      <p>物流設施的倉儲機器人、RFID、GPS 裝置是被忽略的攻擊面，需獨立防護策略。</p>
+      <ul>
+        <li>OT 網路與 IT 網路實體隔離</li>
+        <li>IoT 設備韌體簽章驗證</li>
+        <li>被動式 OT 資產發現工具</li>
+      </ul>
+    </div>
+    <div class="rec-card" style="border-top:2px solid var(--blue)">
+      <div class="rec-icon">📦</div>
+      <h4>供應商風險管理（TPRM）</h4>
+      <p>第三方合作夥伴的資安水準直接決定整體供應鏈韌性。</p>
+      <ul>
+        <li>供應商資安評分卡（年度審查）</li>
+        <li>API 介面安全合約要求</li>
+        <li>SBOM 強制提交機制</li>
+      </ul>
+    </div>
+    <div class="rec-card" style="border-top:2px solid var(--red)">
+      <div class="rec-icon">🚨</div>
+      <h4>事件回應計畫（IRP）</h4>
+      <p>資安事件不可避免，縮短 MTTD/MTTR 是降低損失的關鍵槓桿。</p>
+      <ul>
+        <li>分情境 IR Playbook（勒索、外洩、DDoS）</li>
+        <li>每季桌面演練（Tabletop Exercise）</li>
+        <li>外部 IR 公司預簽合約</li>
+      </ul>
+    </div>
+    <div class="rec-card" style="border-top:2px solid var(--mil-green)">
+      <div class="rec-icon">🛡</div>
+      <h4>數據分類與 DLP</h4>
+      <p>依資料敏感度建立分級制度，確保個人資料與商業機密受差異化保護。</p>
+      <ul>
+        <li>四級分類：公開 / 內部 / 機密 / 最高機密</li>
+        <li>DLP 工具監控非授權傳輸</li>
+        <li>靜態加密 + 傳輸加密 (TLS 1.3+)</li>
+      </ul>
+    </div>
+    <div class="rec-card" style="border-top:2px solid var(--text-muted)">
+      <div class="rec-icon">📊</div>
+      <h4>資安治理與合規</h4>
+      <p>將資安融入企業治理結構，由董事會層級驅動而非僅 IT 部門責任。</p>
+      <ul>
+        <li>設立 CISO 並直接向 CEO 彙報</li>
+        <li>ISO 27001 / SOC 2 Type II 認證</li>
+        <li>資安 KPI 納入董事會報告</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 優先順序矩陣圖 -->
+  <div class="chart-wrap" style="margin-top:24px">
+    <div class="card-title" style="margin-bottom:14px">建議措施優先級 × 投資報酬（ROI Matrix）</div>
+    <canvas id="chartROI" height="100"></canvas>
+  </div>
+</div>
+
+<!-- ════════ S6 影片資源 ════════ -->
+<div class="page-section" id="s6">
+  <div class="section-header">
+    <span class="section-num">07</span>
+    <svg class="jet-sm" viewBox="0 0 200 340" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="100" cy="170" rx="10" ry="110" fill="#39ff7a"/><polygon points="100,20 90,80 110,80" fill="#39ff7a"/><polygon points="100,130 20,230 40,240 100,160 160,240 180,230" fill="#39ff7a"/><polygon points="100,240 50,310 70,315 100,260 130,315 150,310" fill="#39ff7a"/><polygon points="100,100 65,140 75,145 100,115 125,145 135,140" fill="#39ff7a"/></svg>
+    <h2 class="section-title">影片資源</h2>
+    <span class="section-sub">VIDEO RESOURCES</span>
+  </div>
+
+  <div class="video-wrap">
+    <div class="video-head">
+      <span class="tag mil">▶ 教學影片 01</span>
+      <h4>物流業資安威脅總覽（置換為實際影片連結）</h4>
+    </div>
+    <div class="video-container">
+      <div class="video-placeholder" id="vp1">
+        <div class="play-btn" onclick="loadVideo('v1','https://www.youtube.com/embed/dQw4w9WgXcQ')">▶</div>
+        <p>點擊播放 · 或將此 iframe 替換為您的影片連結</p>
+      </div>
+      <iframe id="v1" src="" style="display:none" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    </div>
+  </div>
+
+  <div class="video-wrap">
+    <div class="video-head">
+      <span class="tag mil">▶ 教學影片 02</span>
+      <h4>Zero Trust 架構實作演示</h4>
+    </div>
+    <div class="video-container">
+      <div class="video-placeholder" id="vp2">
+        <div class="play-btn" onclick="loadVideo('v2','https://www.youtube.com/embed/dQw4w9WgXcQ')">▶</div>
+        <p>點擊播放 · 或將此 iframe 替換為您的影片連結</p>
+      </div>
+      <iframe id="v2" src="" style="display:none" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    </div>
+  </div>
+
+  <!-- 本地影片示範 -->
+  <div class="video-wrap">
+    <div class="video-head">
+      <span class="tag amber">▶ 本地影片</span>
+      <h4>本地 MP4 影片播放示範</h4>
+    </div>
+    <div class="video-container">
+      <video controls style="position:absolute;inset:0;width:100%;height:100%;border-radius:0;background:#000">
+        <!-- 替換 src 為您的本地影片路徑，例如：src="videos/demo.mp4" -->
+        <source src="" type="video/mp4" />
+        <div class="video-placeholder">
+          <p>請將 &lt;source src=""&gt; 替換為您的本地 MP4 路徑</p>
+        </div>
+      </video>
+    </div>
+  </div>
+
+  <!-- 嵌入說明 -->
+  <div class="card" style="margin-top:20px">
+    <div class="card-title">影片嵌入方法說明</div>
+    <div style="background:var(--bg-base);border:1px solid var(--border-hi);border-radius:var(--radius);padding:16px;margin-top:12px;font-family:var(--font-mono);font-size:12.5px;color:var(--text-base);line-height:2;overflow-x:auto">
+      <div style="color:var(--text-muted)">/* YouTube 嵌入 */</div>
+      <div><span style="color:var(--neon)">&lt;iframe</span> <span style="color:var(--amber)">src</span>="https://www.youtube.com/embed/<span style="color:var(--red)">VIDEO_ID</span>"<span style="color:var(--neon)">&gt;&lt;/iframe&gt;</span></div>
+      <br>
+      <div style="color:var(--text-muted)">/* 本地 MP4 */</div>
+      <div><span style="color:var(--neon)">&lt;video</span> controls<span style="color:var(--neon)">&gt;</span></div>
+      <div>&nbsp;&nbsp;<span style="color:var(--neon)">&lt;source</span> <span style="color:var(--amber)">src</span>="<span style="color:var(--red)">videos/your-file.mp4</span>" type="video/mp4"<span style="color:var(--neon)">&gt;</span></div>
+      <div><span style="color:var(--neon)">&lt;/video&gt;</span></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /content -->
+</main>
+
+<script>
+/* ─── NAVIGATION ─── */
+const crumbs = {
+  s0:'/ 執行摘要', s1:'/ 威脅分析', s2:'/ 數據隱私法規',
+  s3:'/ 資安架構', s4:'/ 案例研究', s5:'/ 建議對策', s6:'/ 影片資源'
+};
+function showSection(id, el) {
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('topbar-crumb').textContent = crumbs[id] || '';
+  if(window.innerWidth <= 900) closeSidebar();
+  window.scrollTo(0, 0);
+  // lazy init charts
+  initCharts(id);
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('show');
+}
+
+/* ─── VIDEO ─── */
+function loadVideo(iframeId, src) {
+  const iframe = document.getElementById(iframeId);
+  const ph = document.getElementById('vp'+iframeId.replace('v',''));
+  iframe.src = src + '?autoplay=1';
+  iframe.style.display = 'block';
+  if(ph) ph.style.display = 'none';
+}
+
+/* ─── CHART COLORS ─── */
+const C = {
+  neon:   '#39ff7a',
+  green:  '#4a7c59',
+  amber:  '#e8a240',
+  red:    '#e05252',
+  blue:   '#4aa8d8',
+  grid:   '#2a3530',
+  text:   '#6b8070',
+  textHi: '#b4c4bb',
+};
+const chartDefaults = {
+  plugins: {
+    legend: { labels: { color: C.textHi, font: { size: 12 } } },
+    tooltip: {
+      backgroundColor: '#1a1f1c',
+      borderColor: '#3a4f45',
+      borderWidth: 1,
+      titleColor: C.neon,
+      bodyColor: C.textHi,
+    }
+  },
+  scales: {
+    x: { ticks: { color: C.text }, grid: { color: C.grid } },
+    y: { ticks: { color: C.text }, grid: { color: C.grid } }
+  }
+};
+
+const inited = new Set();
+
+function initCharts(id) {
+  if(inited.has(id)) return;
+  inited.add(id);
+
+  if(id === 's0') {
+    new Chart(document.getElementById('chartTrend'), {
+      type: 'line',
+      data: {
+        labels: ['2020','2021','2022','2023','2024','2025E'],
+        datasets: [
+          {
+            label: '已通報資安事件（件）',
+            data: [820, 1050, 1380, 1890, 2847, 3600],
+            borderColor: C.neon, backgroundColor: 'rgba(57,255,122,.08)',
+            fill: true, tension: 0.4, pointBackgroundColor: C.neon,
+            pointRadius: 5, pointHoverRadius: 7
+          },
+          {
+            label: '勒索軟體事件（件）',
+            data: [210, 380, 590, 880, 1340, 1900],
+            borderColor: C.red, backgroundColor: 'rgba(224,82,82,.06)',
+            fill: true, tension: 0.4, pointBackgroundColor: C.red,
+            pointRadius: 5, borderDash: [6,3]
+          },
+          {
+            label: '資料外洩事件（件）',
+            data: [340, 440, 520, 650, 890, 1100],
+            borderColor: C.amber, backgroundColor: 'rgba(232,162,64,.06)',
+            fill: true, tension: 0.4, pointBackgroundColor: C.amber,
+            pointRadius: 5, borderDash: [3,3]
+          }
+        ]
+      },
+      options: { ...chartDefaults, responsive: true, maintainAspectRatio: true }
+    });
+  }
+
+  if(id === 's1') {
+    new Chart(document.getElementById('chartVector'), {
+      type: 'bar',
+      data: {
+        labels: ['釣魚郵件','API漏洞','勒索軟體','內部威脅','DDoS','GPS欺騙','其他'],
+        datasets: [{
+          label: '事件佔比 (%)',
+          data: [34, 22, 18, 10, 7, 4, 5],
+          backgroundColor: [C.red+'cc',C.amber+'cc',C.red+'88',C.blue+'88',C.amber+'66',C.green+'88',C.text+'88'],
+          borderColor: [C.red,C.amber,C.red,C.blue,C.amber,C.green,C.text],
+          borderWidth: 1, borderRadius: 4
+        }]
+      },
+      options: {
+        ...chartDefaults, indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { ...chartDefaults.plugins, legend: { display: false } }
+      }
+    });
+
+    new Chart(document.getElementById('chartSeverity'), {
+      type: 'doughnut',
+      data: {
+        labels: ['CRITICAL','HIGH','MEDIUM','LOW'],
+        datasets: [{
+          data: [28, 38, 24, 10],
+          backgroundColor: [C.red+'cc', C.amber+'cc', C.blue+'cc', C.green+'cc'],
+          borderColor: ['#0d0f0e'],
+          borderWidth: 3, hoverOffset: 8
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { color: C.textHi, padding: 14, font:{size:12} } },
+          tooltip: chartDefaults.plugins.tooltip
+        }
+      }
+    });
+  }
+
+  if(id === 's2') {
+    new Chart(document.getElementById('chartRadar'), {
+      type: 'radar',
+      data: {
+        labels: ['罰款力道','數據本地化','同意機制','外洩通報','跨境傳輸','刪除權'],
+        datasets: [
+          { label: 'GDPR', data: [95,60,90,95,85,95], borderColor:C.blue, backgroundColor:C.blue+'22', pointBackgroundColor:C.blue },
+          { label: 'CCPA/CPRA', data: [70,40,80,60,65,90], borderColor:C.amber, backgroundColor:C.amber+'22', pointBackgroundColor:C.amber },
+          { label: '台灣個資法', data: [55,50,75,70,60,80], borderColor:C.neon, backgroundColor:C.neon+'15', pointBackgroundColor:C.neon },
+          { label: 'PIPL', data: [90,100,85,75,95,80], borderColor:C.red, backgroundColor:C.red+'22', pointBackgroundColor:C.red },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          r: {
+            ticks: { color: C.text, backdropColor:'transparent', font:{size:10} },
+            grid: { color: C.grid },
+            pointLabels: { color: C.textHi, font:{size:12} },
+            min: 0, max: 100,
+          }
+        },
+        plugins: {
+          legend: { labels: { color: C.textHi, font:{size:12} } },
+          tooltip: chartDefaults.plugins.tooltip
+        }
+      }
+    });
+  }
+
+  if(id === 's5') {
+    new Chart(document.getElementById('chartROI'), {
+      type: 'bubble',
+      data: {
+        datasets: [
+          { label:'Zero Trust', data:[{x:4,y:90,r:20}], backgroundColor:C.neon+'99', borderColor:C.neon },
+          { label:'IR Playbook', data:[{x:2,y:85,r:18}], backgroundColor:C.green+'99', borderColor:C.green },
+          { label:'MFA 導入', data:[{x:1,y:92,r:14}], backgroundColor:C.blue+'99', borderColor:C.blue },
+          { label:'TPRM', data:[{x:5,y:75,r:16}], backgroundColor:C.amber+'99', borderColor:C.amber },
+          { label:'OT安全', data:[{x:8,y:65,r:22}], backgroundColor:C.red+'88', borderColor:C.red },
+          { label:'ISO 27001', data:[{x:7,y:70,r:15}], backgroundColor:C.text+'99', borderColor:C.text },
+          { label:'SIEM/SOC', data:[{x:6,y:80,r:17}], backgroundColor:'#9060d0aa', borderColor:'#9060d0' },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          x: { title:{ display:true, text:'導入複雜度（月）', color:C.text }, min:0, max:10, ticks:{color:C.text}, grid:{color:C.grid} },
+          y: { title:{ display:true, text:'ROI 效益指數', color:C.text }, min:50, max:100, ticks:{color:C.text}, grid:{color:C.grid} }
+        },
+        plugins: {
+          legend: { labels: { color:C.textHi, font:{size:12} } },
+          tooltip: {
+            ...chartDefaults.plugins.tooltip,
+            callbacks: {
+              label: ctx => `${ctx.dataset.label} — 複雜度:${ctx.parsed.x}月 ROI:${ctx.parsed.y}`
+            }
+          }
+        }
+      }
+    });
+  }
+}
+
+// init first section
+initCharts('s0');
+</script>
+</body>
+</html>
